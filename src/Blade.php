@@ -1,40 +1,27 @@
-<?php namespace Philo\Blade;
+<?php
 
-use Illuminate\Container\Container;
+namespace Philo\Blade;
+
+use Illuminate\View\Factory;
 use Illuminate\Events\Dispatcher;
+use Illuminate\Container\Container;
+use Illuminate\View\FileViewFinder;
 use Illuminate\Filesystem\Filesystem;
-use Illuminate\Support\MessageBag;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Engines\PhpEngine;
 use Illuminate\View\Engines\CompilerEngine;
 use Illuminate\View\Engines\EngineResolver;
 use Illuminate\View\Compilers\BladeCompiler;
-use Illuminate\View\FileViewFinder;
-use Illuminate\View\Factory;
 
-class Blade {
+class Blade
+{
 
-	/**
-	 * Array containing paths where to look for blade files
-	 * @var array
-	 */
-	public $viewPaths;
+	public array $viewPaths;
 
-	/**
-	 * Location where to store cached views
-	 * @var string
-	 */
-	public $cachePath;
+	public string $cachePath;
 
-	/**
-	 * @var Illuminate\Container\Container
-	 */
-	protected $container;
+	protected Container $container;
 
-	/**
-	 * @var Illuminate\View\Factory
-	 */
-	protected $instance;
+	protected Factory $instance;
 
 	/**
 	 * Initialize class
@@ -42,9 +29,10 @@ class Blade {
 	 * @param string $cachePath
 	 * @param Illuminate\Events\Dispatcher $events
 	 */
-	function __construct($viewPaths = array(), $cachePath, Dispatcher $events = null) {
+	function __construct($viewPaths = array(), $cachePath = '', ?Dispatcher $events = null)
+	{
 
-		$this->container = new Container;
+		$this->container = new Container();
 
 		$this->viewPaths = (array) $viewPaths;
 
@@ -52,7 +40,7 @@ class Blade {
 
 		$this->registerFilesystem();
 
-		$this->registerEvents($events ?: new Dispatcher);
+		$this->registerEvents($events ?: new Dispatcher());
 
 		$this->registerEngineResolver();
 
@@ -68,14 +56,13 @@ class Blade {
 
 	public function registerFilesystem()
 	{
-		$this->container->singleton('files', function(){
-			return new Filesystem;
+		$this->container->singleton('files', function () {
+			return new Filesystem();
 		});
 	}
 	public function registerEvents(Dispatcher $events)
 	{
-		$this->container->singleton('events', function() use ($events)
-		{
+		$this->container->singleton('events', function () use ($events) {
 			return $events;
 		});
 	}
@@ -88,16 +75,14 @@ class Blade {
 	{
 		$me = $this;
 
-		$this->container->singleton('view.engine.resolver', function($app) use ($me)
-		{
-			$resolver = new EngineResolver;
+		$this->container->singleton('view.engine.resolver', function ($app) use ($me) {
+			$resolver = new EngineResolver();
 
 			// Next we will register the various engines with the resolver so that the
 			// environment can resolve the engines it needs for various views based
 			// on the extension of view files. We call a method for each engines.
-			foreach (array('php', 'blade') as $engine)
-			{
-				$me->{'register'.ucfirst($engine).'Engine'}($resolver);
+			foreach (array('php', 'blade') as $engine) {
+				$me->{'register' . ucfirst($engine) . 'Engine'}($resolver);
 			}
 
 			return $resolver;
@@ -112,7 +97,9 @@ class Blade {
 	 */
 	public function registerPhpEngine($resolver)
 	{
-		$resolver->register('php', function() { return new PhpEngine; });
+		$resolver->register('php', function () {
+			return new PhpEngine(new Filesystem());
+		});
 	}
 
 	/**
@@ -129,15 +116,13 @@ class Blade {
 		// The Compiler engine requires an instance of the CompilerInterface, which in
 		// this case will be the Blade compiler, so we'll first create the compiler
 		// instance to pass into the engine so it can compile the views properly.
-		$this->container->singleton('blade.compiler', function($app) use ($me)
-		{
+		$this->container->singleton('blade.compiler', function ($app) use ($me) {
 			$cache = $me->cachePath;
 
 			return new BladeCompiler($app['files'], $cache);
 		});
 
-		$resolver->register('blade', function() use ($app)
-		{
+		$resolver->register('blade', function () use ($app) {
 			return new CompilerEngine($app['blade.compiler'], $app['files']);
 		});
 	}
@@ -150,20 +135,14 @@ class Blade {
 	public function registerViewFinder()
 	{
 		$me = $this;
-		$this->container->singleton('view.finder', function($app) use ($me)
-		{
+		$this->container->singleton('view.finder', function ($app) use ($me) {
 			$paths = $me->viewPaths;
 
 			return new FileViewFinder($app['files'], $paths);
 		});
 	}
 
-	/**
-	 * Register the view environment.
-	 *
-	 * @return void
-	 */
-	public function registerFactory()
+	public function registerFactory(): Factory
 	{
 		// Next we need to grab the engine resolver instance that will be used by the
 		// environment. The resolver will be used by an environment to get each of
